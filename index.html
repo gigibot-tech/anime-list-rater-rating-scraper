@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📺 Anime List Scraper - Multi-Site Parser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+
+        .selection-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .selection-counter.visible {
+            display: block;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1em;
+            margin-top: 10px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .site-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .site-button {
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .site-button:hover {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .site-button.active {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+
+        .site-icon {
+            font-size: 1.5em;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .instructions {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 3px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .instructions code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ffd700;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .button-group.collapsed {
+            display: none;
+        }
+
+        .button-group button {
+            padding: 8px 16px;
+            font-size: 0.85em;
+        }
+
+        .spacing-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 5px;
+            border-radius: 8px;
+        }
+
+        .spacing-btn {
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            color: #e0e0e0;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s;
+            min-width: auto;
+        }
+
+        .spacing-btn:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .spacing-btn.small {
+            padding: 6px 10px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .spacing-label {
+            font-size: 0.75em;
+            color: #888;
+            margin: 0 5px;
+        }
+
+        .toggle-buttons {
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .toggle-buttons:hover {
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .preview-section {
+            grid-column: 1 / -1;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2px;
+            margin-top: 20px;
+        }
+
+        .preview-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 10px;
+            border: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-item:hover {
+            background: rgba(102, 126, 234, 0.15);
+        }
+
+        .preview-item.filtered-out {
+            opacity: 0.3;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .preview-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .preview-content {
+            flex: 1;
+        }
+
+        .preview-title {
+            font-size: 0.85em;
+            line-height: 1.3;
+            margin-bottom: 3px;
+        }
+
+        .preview-meta {
+            font-size: 0.7em;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .meta-tag {
+            background: none;
+            padding: 0;
+        }
+
+        #results {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            max-height: none;
+            overflow-y: visible;
+            display: block;
+        }
+
+        .anime-item {
+            padding: 8px 8px;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.7em;
+            line-height: 1.2;
+            cursor: move;
+            transition: all 0.2s;
+            background: rgba(0, 0, 0, 0.2);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .anime-item:hover {
+            background: rgba(102, 126, 234, 0.15);
+            border-left: 3px solid #667eea;
+            padding-left: 5px;
+        }
+
+        .anime-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+
+        .anime-item.hidden {
+            display: none;
+        }
+
+        .anime-rank {
+            width: 40px;
+            flex-shrink: 0;
+            text-align: center;
+            color: #888;
+            font-weight: bold;
+        }
+
+        .anime-title {
+            flex: 1;
+            padding-left: 5px;
+        }
+
+        .rating-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .status-select {
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.75em;
+            cursor: pointer;
+        }
+
+        .status-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .rating-input {
+            width: 45px;
+            padding: 2px 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.85em;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .rating-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .rating-label {
+            font-size: 0.85em;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .anime-item.dragging {
+            opacity: 0.5;
+        }
+
+        .anime-item.drag-over {
+            border-top: 2px solid #667eea;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            margin-right: 5px;
+            color: #667eea;
+            font-size: 0.8em;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #a0a0a0;
+            margin-top: 5px;
+        }
+
+        .message {
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 3px solid #4caf50;
+            color: #4caf50;
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border-left: 3px solid #f44336;
+            color: #f44336;
+        }
+
+        .info {
+            background: rgba(33, 150, 243, 0.2);
+            border-left: 3px solid #2196f3;
+            color: #64b5f6;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .preview-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #results {
+                display: block;
+            }
+            
+            .anime-item {
+                font-size: 0.65em;
+                padding: 2px 3px;
+                line-height: 1.15;
+            }
+            
+            .section {
+                padding: 10px;
+                background: transparent;
+                border: none;
+            }
+            
+            .section-title {
+                font-size: 1em;
+                margin-bottom: 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            body {
+                padding: 5px;
+            }
+            
+            .anime-item {
+                font-size: 0.6em;
+                padding: 1px 2px;
+                line-height: 1.1;
+            }
+            
+            .drag-handle {
+                font-size: 0.7em;
+                margin-right: 3px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="selection-counter" id="selectionCounter">
+        ✓ <span id="selectedCount">0</span> selected
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>📺 Anime List Scraper</h1>
+            <p class="subtitle">Multi-site parser with live preview • Extract clean anime lists from any seasonal site</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Site Selection -->
+            <div class="section">
+                <div class="section-title">🌐 Select Site</div>
+                <div class="site-selector">
+                    <div class="site-button active" data-site="livechart" onclick="selectSite('livechart')">
+                        <span class="site-icon">📊</span>
+                        LiveChart.me
+                    </div>
+                    <div class="site-button" data-site="myanimelist" onclick="selectSite('myanimelist')">
+                        <span class="site-icon">📝</span>
+                        MyAnimeList
+                    </div>
+                    <div class="site-button" data-site="anichart" onclick="selectSite('anichart')">
+                        <span class="site-icon">📈</span>
+                        AniChart
+                    </div>
+                    <div class="site-button" data-site="anilist" onclick="selectSite('anilist')">
+                        <span class="site-icon">🎯</span>
+                        AniList
+                    </div>
+                </div>
+
+                <div id="siteInstructions">
+                    <!-- Instructions will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Input Section -->
+            <div class="section">
+                <div class="section-title">📋 Paste HTML Source</div>
+                <textarea id="htmlInput" placeholder="Paste the full HTML source code here..."></textarea>
+                <div class="button-group">
+                    <button onclick="parseHTML()">🔍 Parse & Preview</button>
+                    <button onclick="clearInput()">🗑️ Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="section preview-section hidden" id="previewSection">
+            <div class="section-title">👁️ Preview - Parsed Anime</div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalParsed">0</div>
+                    <div class="stat-label">Titles Found</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="uniqueCount">0</div>
+                    <div class="stat-label">Unique</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="currentSite">-</div>
+                    <div class="stat-label">Source</div>
+                </div>
+            </div>
+            <div class="preview-grid" id="previewGrid"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="section hidden" id="resultsSection">
+            <div class="section-title">📄 Clean List Output</div>
+            <button class="toggle-buttons" onclick="toggleButtons()">
+                <span id="toggleIcon">▼</span> Show/Hide Buttons
+            </button>
+            <div class="button-group" id="buttonGroup">
+                <button onclick="downloadList()">📥 Download</button>
+                <button onclick="copyToClipboard()">📋 Copy</button>
+                <button onclick="exportRatings()">⭐ Export</button>
+                <button onclick="document.getElementById('importFile').click()">📤 Import</button>
+                <button onclick="clearResults()">🗑️ Clear</button>
+                <div class="spacing-controls">
+                    <span class="spacing-label">Spacing:</span>
+                    <button class="spacing-btn" onclick="autoLayout()">📐 Auto</button>
+                    <button class="spacing-btn small" onclick="adjustSpacing(-2)">−</button>
+                    <button class="spacing-btn small" onclick="adjustSpacing(2)">+</button>
+                </div>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importRatings(event)">
+            <div id="results"></div>
+        </div>
+
+        <div id="messageArea"></div>
+    </div>
+
+    <script>
+        // Site-specific parsers
+        const PARSERS = {
+            livechart: {
+                name: 'LiveChart.me',
+                instructions: `
+                    <div class="instructions">
+                        <strong>📋 LiveChart.me Instructions:</strong><br>
+                        1. Go to <a href="https://www.livechart.me/winter-2026/tv" target="_blank" style="color: #667eea;">LiveChart.me</a><br>
+                        2. Right-click → <code>View Page Source</code> (Ctrl+U / Cmd+Option+U)<br>
+                        3. Copy all HTML (Ctrl+A, Ctrl+C)<br>
+                        4. Paste here and click "Parse & Preview"
+                    </div>
+                `,
+                parse: (doc) => {
+                    const anime = [];
+                    
+                    // Method 1: article.anime with data-romaji
+                    const articles = doc.querySelectorAll('article.anime[data-romaji]');
+                    articles.forEach(article => {
+                        const title = article.getAttribute('data-romaji');
+                        const english = article.getAttribute('data-english');
+                        const id = article.getAttribute('data-anime-id');
+                        
+                        if (title && title.trim()) {
+                            anime.push({
+                                title: title.trim(),
+                                englishTitle: english?.trim() || '',
+                                id: id || '',
+                                source: 'livechart'
+                            });
+                        }
+                    });
+                    
+                    // Method 2: h3.main-title a (fallback)
+                    if (anime.length === 0) {
+                        const titles = doc.querySelectorAll('h3.main-title a');
+                        titles.forEach((el, idx) => {
+                            const title = el.textContent.trim();
+                            if (title && title.length > 2) {
+                                anime.push({
+                                    title: title,
+                                    englishTitle: '',
+                                    id: `lc-${idx}`,
+                                    source: 'livechart'
+                                });
+                            }
+                        });
+                    }
+                    
+                    return anime;
+                }
+            },
+            
+            myanimelist: {
+                name: 'MyAnimeList',
+                instructions: `
+                    <div class="instructions">
+                        <strong>📋 MyAnimeList Instructions:</strong><br>
+                        1. Go to <a href="https://myanimelist.net/anime/season" target="_blank" style="color: #667eea;">MAL Seasonal</a><br>
+                        2. Right-click → <code>View Page Source</code><br>
+                        3. Copy all HTML<br>
+                        4. Paste here and click "Parse & Preview"
+                    </div>
+                `,
+                parse: (doc) => {
+                    const anime = [];
+                    
+                    // MAL seasonal page structure
+                    const titles = doc.querySelectorAll('.title a, .anime-title a, h2.h2_anime_title a');
+                    titles.forEach((el, idx) => {
+                        const title = el.textContent.trim();
+                        const href = el.getAttribute('href');
+                        const id = href ? href.match(/\/anime\/(\d+)/)?.[1] : '';
+                        
+                        if (title && title.length > 2 && !title.match(/^(Home|Login|Sign|Menu)$/i)) {
+                            anime.push({
+                                title: title,
+                                englishTitle: '',
+                                id: id || `mal-${idx}`,
+                                source: 'myanimelist'
+                            });
+                        }
+                    });
+                    
+                    return anime;
+                }
+            },
+            
+            anichart: {
+                name: 'AniChart',
+                instructions: `
+                    <div class="instructions">
+                        <strong>📋 AniChart Instructions:</strong><br>
+                        1. Go to <a href="https://anichart.net/Winter-2026" target="_blank" style="color: #667eea;">AniChart</a><br>
+                        2. Right-click → <code>View Page Source</code><br>
+                        3. Copy all HTML<br>
+                        4. Paste here and click "Parse & Preview"
+                    </div>
+                `,
+                parse: (doc) => {
+                    const anime = [];
+                    
+                    // AniChart uses various selectors
+                    const selectors = [
+                        '.title',
+                        '.anime-title',
+                        '[data-title]',
+                        'a.title'
+                    ];
+                    
+                    selectors.forEach(selector => {
+                        const elements = doc.querySelectorAll(selector);
+                        elements.forEach((el, idx) => {
+                            const title = el.textContent?.trim() || el.getAttribute('data-title')?.trim();
+                            if (title && title.length > 2) {
+                                anime.push({
+                                    title: title,
+                                    englishTitle: '',
+                                    id: `ac-${idx}`,
+                                    source: 'anichart'
+                                });
+                            }
+                        });
+                    });
+                    
+                    return anime;
+                }
+            },
+            
+            anilist: {
+                name: 'AniList',
+                instructions: `
+                    <div class="instructions">
+                        <strong>📋 AniList Instructions:</strong><br>
+                        1. Go to <a href="https://anilist.co/search/anime/winter-2026" target="_blank" style="color: #667eea;">AniList</a><br>
+                        2. Right-click → <code>View Page Source</code><br>
+                        3. Copy all HTML<br>
+                        4. Paste here and click "Parse & Preview"
+                    </div>
+                `,
+                parse: (doc) => {
+                    const anime = [];
+                    
+                    // AniList structure
+                    const titles = doc.querySelectorAll('.title, .media-title, [data-title]');
+                    titles.forEach((el, idx) => {
+                        const title = el.textContent?.trim() || el.getAttribute('data-title')?.trim();
+                        if (title && title.length > 2) {
+                            anime.push({
+                                title: title,
+                                englishTitle: '',
+                                id: `al-${idx}`,
+                                source: 'anilist'
+                            });
+                        }
+                    });
+                    
+                    return anime;
+                }
+            }
+        };
+
+        let currentSite = 'livechart';
+        let parsedData = [];
+        let selectedIndices = new Set();
+        let ratings = {};
+        let statuses = {};
+        let buttonsVisible = true;
+
+        function selectSite(site) {
+            currentSite = site;
+            
+            // Update button states
+            document.querySelectorAll('.site-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-site="${site}"]`).classList.add('active');
+            
+            // Update instructions
+            document.getElementById('siteInstructions').innerHTML = PARSERS[site].instructions;
+            
+            // Clear previous results
+            clearInput();
+        }
+
+        function parseHTML() {
+            const input = document.getElementById('htmlInput').value.trim();
+            
+            if (!input) {
+                showMessage('Please paste HTML source code first!', 'error');
+                return;
+            }
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(input, 'text/html');
+                
+                // Use site-specific parser
+                const siteParser = PARSERS[currentSite];
+                let anime = siteParser.parse(doc);
+                
+                if (anime.length === 0) {
+                    showMessage('No anime titles found. Make sure you copied the full page source.', 'error');
+                    return;
+                }
+                
+                // Remove duplicates only
+                const seen = new Set();
+                anime = anime.filter(item => {
+                    const key = item.title.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+                
+                // Keep original parse order (no sorting)
+                
+                parsedData = anime;
+                displayPreview(anime);
+                displayResults(anime);
+                
+                showMessage(`✅ Successfully parsed ${anime.length} anime titles from ${siteParser.name}!`, 'success');
+                
+            } catch (error) {
+                showMessage('Error parsing HTML. Please make sure you copied the full page source.', 'error');
+                console.error(error);
+            }
+        }
+
+        function displayPreview(anime) {
+            const previewSection = document.getElementById('previewSection');
+            const previewGrid = document.getElementById('previewGrid');
+            const totalParsed = document.getElementById('totalParsed');
+            const uniqueCount = document.getElementById('uniqueCount');
+            const currentSiteEl = document.getElementById('currentSite');
+            
+            previewSection.classList.remove('hidden');
+            
+            totalParsed.textContent = anime.length;
+            uniqueCount.textContent = anime.length;
+            currentSiteEl.textContent = PARSERS[currentSite].name;
+            
+            previewGrid.innerHTML = anime.map((item, idx) => {
+                const isSelected = selectedIndices.size === 0 || selectedIndices.has(idx);
+                return `<div class="preview-item ${isSelected ? '' : 'filtered-out'}" draggable="true" data-index="${idx}">
+                    <input type="checkbox" class="preview-checkbox"
+                           ${selectedIndices.has(idx) ? 'checked' : ''}
+                           onchange="toggleSelection(${idx})"
+                           onclick="event.stopPropagation()">
+                    <div class="preview-content">
+                        <div class="preview-title">
+                            <span class="drag-handle" style="font-size: 0.7em;">⋮⋮</span>
+                            ${idx + 1}. ${escapeHtml(item.englishTitle || item.title)}
+                        </div>
+                        ${item.englishTitle && item.englishTitle !== item.title ? `<div class="preview-meta">
+                            <span class="meta-tag">${escapeHtml(item.title)}</span>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            
+            // Add drag-and-drop to preview items
+            setupPreviewDragAndDrop();
+        }
+
+        function setupPreviewDragAndDrop() {
+            const items = document.querySelectorAll('.preview-item');
+            
+            items.forEach(item => {
+                item.style.cursor = 'move';
+                item.addEventListener('dragstart', handlePreviewDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handlePreviewDrop);
+                item.addEventListener('dragend', handlePreviewDragEnd);
+                item.addEventListener('dragenter', handlePreviewDragEnter);
+                item.addEventListener('dragleave', handlePreviewDragLeave);
+            });
+        }
+
+        function handlePreviewDragStart(e) {
+            draggedElement = this;
+            draggedIndex = parseInt(this.getAttribute('data-index'));
+            this.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handlePreviewDragEnter(e) {
+            if (this !== draggedElement) {
+                this.style.borderTop = '3px solid #667eea';
+            }
+        }
+
+        function handlePreviewDragLeave(e) {
+            this.style.borderTop = '';
+        }
+
+        function handlePreviewDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedElement !== this) {
+                const dropIndex = parseInt(this.getAttribute('data-index'));
+                
+                // Reorder the parsedData array
+                const item = parsedData[draggedIndex];
+                parsedData.splice(draggedIndex, 1);
+                parsedData.splice(dropIndex, 0, item);
+                
+                // Update both displays
+                displayPreview(parsedData);
+                displayResults(parsedData);
+                
+                showMessage('✅ List reordered', 'success');
+            }
+            
+            return false;
+        }
+
+        function handlePreviewDragEnd(e) {
+            this.style.opacity = '';
+            
+            // Remove border from all items
+            document.querySelectorAll('.preview-item').forEach(item => {
+                item.style.borderTop = '';
+            });
+            
+            draggedElement = null;
+            draggedIndex = null;
+        }
+
+        function displayResults(anime) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsDiv = document.getElementById('results');
+            
+            resultsSection.classList.remove('hidden');
+            
+            const sourceName = PARSERS[currentSite].name;
+            const headerHTML = `
+                <div class="list-header">
+                    <span class="drag-handle" style="opacity: 0;">⋮⋮</span>
+                    <div class="header-rank">Rank</div>
+                    <div class="header-title">English Anime Title (${sourceName})</div>
+                    <div class="header-status">Status</div>
+                    <div class="header-score">My Score</div>
+                </div>
+            `;
+            
+            const itemsHTML = anime.map((item, idx) => {
+                const displayTitle = item.englishTitle || item.title;
+                const isVisible = selectedIndices.size === 0 || selectedIndices.has(idx);
+                const rating = ratings[idx] !== undefined ? ratings[idx] : 5.0;
+                const status = statuses[idx] || 'Completed';
+                
+                return `<div class="anime-item ${isVisible ? '' : 'hidden'}" draggable="true" data-index="${idx}">
+                    <span class="drag-handle">⋮⋮</span>
+                    <div class="anime-rank">#${idx + 1}</div>
+                    <span class="anime-title">${escapeHtml(displayTitle)}</span>
+                    <div class="rating-container">
+                        <select class="status-select" onchange="updateStatus(${idx}, this.value)" onclick="event.stopPropagation()">
+                            <option value="On-Going" ${status === 'On-Going' ? 'selected' : ''}>On-Going</option>
+                            <option value="Completed" ${status === 'Completed' ? 'selected' : ''}>Completed</option>
+                            <option value="Dropped" ${status === 'Dropped' ? 'selected' : ''}>Dropped</option>
+                        </select>
+                        <input type="number" class="rating-input"
+                               value="${rating}"
+                               min="0" max="10" step="0.5"
+                               onchange="updateRating(${idx}, this.value)"
+                               onclick="event.stopPropagation()">
+                        <span class="rating-label">/10</span>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            resultsDiv.innerHTML = headerHTML + itemsHTML;
+            
+            // Initialize ratings and statuses for new items
+            anime.forEach((item, idx) => {
+                if (ratings[idx] === undefined) {
+                    ratings[idx] = 5.0;
+                }
+                if (statuses[idx] === undefined) {
+                    statuses[idx] = 'Completed';
+                }
+            });
+            
+            // Add drag-and-drop event listeners
+            setupDragAndDrop();
+            
+            // Don't auto-scroll
+        }
+
+        let draggedElement = null;
+        let draggedIndex = null;
+
+        function setupDragAndDrop() {
+            const items = document.querySelectorAll('.anime-item');
+            
+            items.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+                item.addEventListener('dragenter', handleDragEnter);
+                item.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            draggedIndex = parseInt(this.getAttribute('data-index'));
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            if (this !== draggedElement) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedElement !== this) {
+                const dropIndex = parseInt(this.getAttribute('data-index'));
+                
+                // Reorder the parsedData array
+                const item = parsedData[draggedIndex];
+                parsedData.splice(draggedIndex, 1);
+                parsedData.splice(dropIndex, 0, item);
+                
+                // Update both displays
+                displayPreview(parsedData);
+                displayResults(parsedData);
+                
+                showMessage('✅ List reordered', 'success');
+            }
+            
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Remove drag-over class from all items
+            document.querySelectorAll('.anime-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            
+            draggedElement = null;
+            draggedIndex = null;
+        }
+
+        function downloadList() {
+            if (parsedData.length === 0) {
+                showMessage('No data to download!', 'error');
+                return;
+            }
+
+            // Filter to only selected items if any are selected
+            const itemsToExport = selectedIndices.size > 0
+                ? parsedData.filter((item, idx) => selectedIndices.has(idx))
+                : parsedData;
+
+            const text = itemsToExport.map((item, idx) => {
+                const displayTitle = item.englishTitle || item.title;
+                const altTitle = item.englishTitle && item.englishTitle !== item.title ? ` (${item.title})` : '';
+                return `${idx + 1}. ${displayTitle}${altTitle}`;
+            }).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `anime-list-${currentSite}-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('✅ Downloaded!', 'success');
+        }
+
+        function copyToClipboard() {
+            if (parsedData.length === 0) {
+                showMessage('No data to copy!', 'error');
+                return;
+            }
+
+            // Filter to only selected items if any are selected
+            const itemsToExport = selectedIndices.size > 0
+                ? parsedData.filter((item, idx) => selectedIndices.has(idx))
+                : parsedData;
+
+            const text = itemsToExport.map((item, idx) => {
+                const displayTitle = item.englishTitle || item.title;
+                const altTitle = item.englishTitle && item.englishTitle !== item.title ? ` (${item.title})` : '';
+                return `${idx + 1}. ${displayTitle}${altTitle}`;
+            }).join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                showMessage('✅ Copied to clipboard!', 'success');
+            }).catch(() => {
+                showMessage('Failed to copy', 'error');
+            });
+        }
+
+        function toggleSelection(index) {
+            if (selectedIndices.has(index)) {
+                selectedIndices.delete(index);
+            } else {
+                selectedIndices.add(index);
+            }
+            
+            // Update both displays
+            displayPreview(parsedData);
+            displayResults(parsedData);
+            
+            // Update selection counter
+            updateSelectionCounter();
+        }
+
+        function updateSelectionCounter() {
+            const counter = document.getElementById('selectionCounter');
+            const countSpan = document.getElementById('selectedCount');
+            const count = selectedIndices.size;
+            
+            if (count > 0) {
+                countSpan.textContent = count;
+                counter.classList.add('visible');
+            } else {
+                counter.classList.remove('visible');
+            }
+        }
+
+        function toggleButtons() {
+            buttonsVisible = !buttonsVisible;
+            const buttonGroup = document.getElementById('buttonGroup');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (buttonsVisible) {
+                buttonGroup.classList.remove('collapsed');
+                toggleIcon.textContent = '▼';
+            } else {
+                buttonGroup.classList.add('collapsed');
+                toggleIcon.textContent = '▶';
+            }
+        }
+
+        function updateStatus(index, value) {
+            statuses[index] = value;
+            showMessage(`✅ Status updated: ${value}`, 'success');
+        }
+
+        function updateRating(index, value) {
+            const rating = parseFloat(value);
+            if (rating >= 0 && rating <= 10) {
+                ratings[index] = rating;
+                showMessage(`✅ Rating updated: ${rating}/10`, 'success');
+            }
+        }
+
+        function exportRatings() {
+            if (parsedData.length === 0) {
+                showMessage('No data to export!', 'error');
+                return;
+            }
+
+            // Filter to only selected items if any are selected
+            const itemsToExport = selectedIndices.size > 0
+                ? parsedData.filter((item, idx) => selectedIndices.has(idx))
+                : parsedData;
+
+            const ratingsData = {};
+            itemsToExport.forEach((item) => {
+                const idx = parsedData.indexOf(item);
+                const title = item.englishTitle || item.title;
+                const rating = ratings[idx] !== undefined ? ratings[idx] : 5.0;
+                const status = statuses[idx] || 'On-Going';
+                ratingsData[title] = {
+                    rating: rating,
+                    status: status
+                };
+            });
+
+            const jsonString = JSON.stringify(ratingsData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `anime-ratings-${currentSite}-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('✅ Ratings exported as JSON!', 'success');
+        }
+
+        function importRatings(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    let matchedCount = 0;
+                    let skippedCount = 0;
+                    const matchedTitles = [];
+                    const skippedTitles = [];
+
+                    // Clear current selections
+                    selectedIndices.clear();
+
+                    // Try to match imported titles with parsed data
+                    Object.keys(importedData).forEach(importedTitle => {
+                        let matched = false;
+                        
+                        parsedData.forEach((item, idx) => {
+                            const animeTitle = item.englishTitle || item.title;
+                            
+                            // Try exact match or case-insensitive match
+                            if (animeTitle === importedTitle ||
+                                animeTitle.toLowerCase() === importedTitle.toLowerCase()) {
+                                
+                                matched = true;
+                                matchedCount++;
+                                matchedTitles.push(animeTitle);
+                                
+                                // Import the data
+                                const data = importedData[importedTitle];
+                                if (typeof data === 'object') {
+                                    // New format with rating and status
+                                    if (data.rating !== undefined) {
+                                        ratings[idx] = data.rating;
+                                    }
+                                    if (data.status !== undefined) {
+                                        statuses[idx] = data.status;
+                                    }
+                                } else {
+                                    // Old format (just rating number)
+                                    ratings[idx] = data;
+                                }
+                                
+                                // Auto-select this item
+                                selectedIndices.add(idx);
+                            }
+                        });
+
+                        if (!matched) {
+                            skippedCount++;
+                            skippedTitles.push(importedTitle);
+                        }
+                    });
+
+                    // Update displays
+                    displayPreview(parsedData);
+                    displayResults(parsedData);
+                    updateSelectionCounter();
+
+                    // Show detailed summary
+                    let message = `✅ Import complete!\n`;
+                    message += `📊 Matched: ${matchedCount} anime\n`;
+                    if (skippedCount > 0) {
+                        message += `⚠️ Skipped: ${skippedCount} (not found in current list)\n`;
+                    }
+                    
+                    if (matchedTitles.length > 0 && matchedTitles.length <= 5) {
+                        message += `\nMatched: ${matchedTitles.join(', ')}`;
+                    } else if (matchedTitles.length > 5) {
+                        message += `\nMatched: ${matchedTitles.slice(0, 3).join(', ')} and ${matchedTitles.length - 3} more...`;
+                    }
+                    
+                    if (skippedTitles.length > 0 && skippedTitles.length <= 3) {
+                        message += `\n\nSkipped: ${skippedTitles.join(', ')}`;
+                    } else if (skippedTitles.length > 3) {
+                        message += `\n\nSkipped: ${skippedTitles.slice(0, 2).join(', ')} and ${skippedTitles.length - 2} more...`;
+                    }
+
+                    showMessage(message, matchedCount > 0 ? 'success' : 'info');
+
+                } catch (error) {
+                    showMessage('❌ Error reading file. Make sure it\'s a valid JSON file.', 'error');
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function autoLayout() {
+            const resultsDiv = document.getElementById('results');
+            const items = resultsDiv.querySelectorAll('.anime-item:not(.hidden)');
+            
+            if (items.length === 0) {
+                showMessage('No items to layout', 'info');
+                return;
+            }
+
+            // Get viewport height
+            const viewportHeight = window.innerHeight;
+            
+            // Calculate header and button heights
+            const header = document.querySelector('.list-header');
+            const headerHeight = header ? header.offsetHeight : 0;
+            const buttonsHeight = 200; // Approximate space for buttons and margins
+            
+            // Available height for items
+            const availableHeight = viewportHeight - headerHeight - buttonsHeight;
+            
+            // Calculate optimal spacing
+            const itemBaseHeight = 25; // Approximate base height of an item
+            const totalItemsHeight = items.length * itemBaseHeight;
+            const extraSpace = availableHeight - totalItemsHeight;
+            
+            if (extraSpace > 0) {
+                // Distribute extra space evenly
+                const spacingPerItem = Math.floor(extraSpace / items.length);
+                currentSpacing = Math.max(2, Math.min(spacingPerItem, 30)); // Clamp between 2-30px
+            } else {
+                currentSpacing = 2; // Minimal spacing if content is too tall
+            }
+            
+            applySpacing();
+            showMessage(`✅ Auto layout: ${currentSpacing}px spacing`, 'success');
+        }
+
+        function adjustSpacing(delta) {
+            currentSpacing = Math.max(0, Math.min(currentSpacing + delta, 50)); // Clamp 0-50px
+            applySpacing();
+            showMessage(`Spacing: ${currentSpacing}px`, 'info');
+        }
+
+        function applySpacing() {
+            const items = document.querySelectorAll('.anime-item');
+            items.forEach(item => {
+                item.style.paddingTop = `${currentSpacing}px`;
+                item.style.paddingBottom = `${currentSpacing}px`;
+            });
+        }
+
+        function clearInput() {
+            document.getElementById('htmlInput').value = '';
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            parsedData = [];
+            selectedIndices.clear();
+            ratings = {};
+            statuses = {};
+            updateSelectionCounter();
+        }
+
+        function clearResults() {
+            clearInput();
+        }
+
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('messageArea');
+            messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => messageArea.innerHTML = '', 4000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize with default site
+        selectSite('livechart');
+    </script>
+</body>
+</html>
